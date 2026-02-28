@@ -1,0 +1,254 @@
+if getgenv().PW_Hub then return end
+getgenv().PW_Hub=true
+local Plrs=game:GetService("Players") local RS=game:GetService("RunService") local RepS=game:GetService("ReplicatedStorage")
+local VU=game:GetService("VirtualUser") local TS=game:GetService("TeleportService") local HS=game:GetService("HttpService")
+local UIS=game:GetService("UserInputService") local CS=game:GetService("CollectionService") local Lighting=game:GetService("Lighting")
+local TweenS=game:GetService("TweenService")
+local LP=Plrs.LocalPlayer local Cam=workspace.CurrentCamera
+local Controls=require(LP:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")):GetControls()
+local CoreGui=gethui and gethui() or game:GetService("CoreGui")
+local Rem=RepS.Remotes
+local WindUI=loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local Window=WindUI:CreateWindow({Title="Pets War OP",Icon="sword",Author="PratesDev",Folder="PetsWarOP",Size=UDim2.fromOffset(600,500),Transparent=true,Theme="Dark",Resizable=true,OpenButton={Title="Open Hub",CornerRadius=UDim.new(1,0),StrokeThickness=3}})
+local TC=Window:Tab({Title="Combat",Icon="swords"})
+local TF=Window:Tab({Title="Farming",Icon="package"})
+local TK=Window:Tab({Title="Cores",Icon="cpu"})
+local TM=Window:Tab({Title="Move",Icon="move"})
+local TV=Window:Tab({Title="Visuals",Icon="eye"})
+local TP=Window:Tab({Title="Optim",Icon="gauge"})
+local TS2=Window:Tab({Title="Server",Icon="globe"})
+local TST=Window:Tab({Title="Settings",Icon="settings"})
+local Cfg={KillAura=false,AuraDist=50,AuraInterval=0.1,AuraVisible=false,AutoPet=false,Hitbox=false,HSize=5,MobHitbox=false,MobHSize=12,AutoC=false,FishInterval=0.1,BringC=false,AutoCollect=false,InstP=false,Fly=false,FlySpeed=50,Freecam=false,FCSpeed=2,Noclip=false,InfJ=false,AFK=false,WalkSpeed=16,JumpPower=50,EspN=false,EspB=false,EspL=false,EspDist=false,RndC=false,MobEsp=false,MobHealth=false,ChestEsp=false,Crosshair=false,StatsUI=false,PlayerHealth=false,StaffD=false,SaveCfg=false}
+local function SaveCfg() if not isfolder("PetsWarOP") then makefolder("PetsWarOP") end pcall(function() writefile("PetsWarOP/config.json",HS:JSONEncode({WalkSpeed=Cfg.WalkSpeed,JumpPower=Cfg.JumpPower,FlySpeed=Cfg.FlySpeed,FCSpeed=Cfg.FCSpeed,AuraDist=Cfg.AuraDist,HSize=Cfg.HSize,MobHSize=Cfg.MobHSize})) end) end
+pcall(function() if isfile("PetsWarOP/config.json") then for k,v in pairs(HS:JSONDecode(readfile("PetsWarOP/config.json"))) do Cfg[k]=v end end end)
+local function HttpReq(url) local req=(syn and syn.request) or request or http_request local ok,res=pcall(req,{Url=url,Method="GET"}) if ok and res and res.Body then local j,d=pcall(function() return HS:JSONDecode(res.Body) end) if j then return d end end end
+local function FmtDot(n) n=math.floor(n or 0) local s=tostring(n) local r="" local len=#s for i=1,len do r=r..s:sub(i,i) local rem=len-i if rem>0 and rem%3==0 then r=r.."." end end return r end
+local function FmtShort(n) n=n or 0 if n>=1e9 then return string.format("%.1fB",n/1e9) elseif n>=1e6 then return string.format("%.1fM",n/1e6) elseif n>=1e3 then return string.format("%.1fK",n/1e3) end return tostring(math.floor(n)) end
+local function GetInv() local ok,d=pcall(function() return Rem.GetInventoryData:InvokeServer() end) if ok and d then return d end return nil end
+local FCPart=Instance.new("Part") FCPart.Anchored=true FCPart.CanCollide=false FCPart.Transparency=1
+local AuraPart=Instance.new("Part") AuraPart.Name="PW_AuraSphere" AuraPart.Anchored=true AuraPart.CanCollide=false AuraPart.CanQuery=false AuraPart.CanTouch=false AuraPart.CastShadow=false AuraPart.Transparency=0.80 AuraPart.BrickColor=BrickColor.new("Medium lavender") AuraPart.Material=Enum.Material.Neon
+local AuraMesh=Instance.new("SpecialMesh",AuraPart) AuraMesh.MeshType=Enum.MeshType.Sphere
+local CrossGui=Instance.new("ScreenGui") CrossGui.Name="PW_Cross" CrossGui.Parent=CoreGui CrossGui.Enabled=false
+local function MkCL(pos,sz) local f=Instance.new("Frame",CrossGui) f.BackgroundColor3=Color3.new(1,1,1) f.BackgroundTransparency=0.15 f.BorderSizePixel=0 f.Position=pos f.Size=sz end
+MkCL(UDim2.new(0.5,0,0.5,-6),UDim2.new(0,1,0,12)) MkCL(UDim2.new(0.5,-6,0.5,0),UDim2.new(0,12,0,1))
+local StatsGui=Instance.new("ScreenGui") StatsGui.Name="PW_Stats" StatsGui.Parent=CoreGui StatsGui.Enabled=false
+local StatsTxt=Instance.new("TextLabel",StatsGui) StatsTxt.Size=UDim2.fromOffset(400,22) StatsTxt.Position=UDim2.new(0,10,1,-32) StatsTxt.BackgroundTransparency=1 StatsTxt.TextColor3=Color3.new(1,1,1) StatsTxt.TextStrokeTransparency=0.35 StatsTxt.TextStrokeColor3=Color3.new(0,0,0) StatsTxt.RichText=true StatsTxt.TextXAlignment=Enum.TextXAlignment.Left StatsTxt.Font=Enum.Font.GothamBold StatsTxt.TextSize=13
+local lastStatT=0 local cachedFPS=60
+local function FpsClr(f) if f<20 then return "#FF2222" elseif f<30 then return "#FF6600" elseif f<40 then return "#FFB300" elseif f<50 then return "#CCDD00" else return "#33EE66" end end
+local ConsoleGui=Instance.new("ScreenGui") ConsoleGui.Name="PW_Console" ConsoleGui.Parent=CoreGui ConsoleGui.ZIndexBehavior=Enum.ZIndexBehavior.Sibling ConsoleGui.ResetOnSpawn=false ConsoleGui.Enabled=false
+local CF=Instance.new("Frame",ConsoleGui) CF.Size=UDim2.fromOffset(400,240) CF.Position=UDim2.fromOffset(12,12) CF.BackgroundColor3=Color3.fromRGB(20,20,26) CF.BackgroundTransparency=0.2 CF.BorderSizePixel=0 CF.Active=true CF.ClipsDescendants=true
+Instance.new("UICorner",CF).CornerRadius=UDim.new(0,10)
+local CFStroke=Instance.new("UIStroke",CF) CFStroke.Color=Color3.fromRGB(65,55,85) CFStroke.Thickness=1
+local CTB=Instance.new("Frame",CF) CTB.Size=UDim2.new(1,0,0,30) CTB.BackgroundColor3=Color3.fromRGB(30,28,38) CTB.BackgroundTransparency=0.1 CTB.BorderSizePixel=0 CTB.Active=true
+Instance.new("UICorner",CTB).CornerRadius=UDim.new(0,10)
+local CTBFix=Instance.new("Frame",CTB) CTBFix.Size=UDim2.new(1,0,0.5,0) CTBFix.Position=UDim2.new(0,0,0.5,0) CTBFix.BackgroundColor3=Color3.fromRGB(30,28,38) CTBFix.BackgroundTransparency=0.1 CTBFix.BorderSizePixel=0
+local function MkDot(x,c,h) local b=Instance.new("TextButton",CTB) b.Size=UDim2.fromOffset(11,11) b.Position=UDim2.new(0,x,0.5,-5.5) b.BackgroundColor3=c b.Text="" b.BorderSizePixel=0 b.AutoButtonColor=false Instance.new("UICorner",b).CornerRadius=UDim.new(1,0) b.MouseEnter:Connect(function() b.BackgroundColor3=h end) b.MouseLeave:Connect(function() b.BackgroundColor3=c end) return b end
+local DotX=MkDot(9,Color3.fromRGB(255,95,86),Color3.fromRGB(200,40,30))
+local DotM=MkDot(25,Color3.fromRGB(255,189,46),Color3.fromRGB(200,140,10))
+local DotZ=MkDot(41,Color3.fromRGB(39,201,63),Color3.fromRGB(20,150,35))
+local CTBLbl=Instance.new("TextLabel",CTB) CTBLbl.Size=UDim2.new(1,0,1,0) CTBLbl.BackgroundTransparency=1 CTBLbl.TextColor3=Color3.fromRGB(185,185,205) CTBLbl.Font=Enum.Font.GothamBold CTBLbl.TextSize=12 CTBLbl.Text="PW Console"
+local CSep=Instance.new("Frame",CF) CSep.Size=UDim2.new(1,0,0,1) CSep.Position=UDim2.new(0,0,0,30) CSep.BackgroundColor3=Color3.fromRGB(55,50,70) CSep.BorderSizePixel=0
+local CScroll=Instance.new("ScrollingFrame",CF) CScroll.Position=UDim2.new(0,0,0,31) CScroll.Size=UDim2.new(1,0,1,-31) CScroll.BackgroundTransparency=1 CScroll.BorderSizePixel=0 CScroll.ScrollBarThickness=3 CScroll.ScrollBarImageColor3=Color3.fromRGB(90,80,120) CScroll.CanvasSize=UDim2.new(0,0,0,0) CScroll.AutomaticCanvasSize=Enum.AutomaticSize.Y
+local CList=Instance.new("UIListLayout",CScroll) CList.SortOrder=Enum.SortOrder.LayoutOrder CList.Padding=UDim.new(0,0)
+local CPad=Instance.new("UIPadding",CScroll) CPad.PaddingLeft=UDim.new(0,7) CPad.PaddingRight=UDim.new(0,6) CPad.PaddingTop=UDim.new(0,3) CPad.PaddingBottom=UDim.new(0,3)
+local conMin=false
+DotX.MouseButton1Click:Connect(function() ConsoleGui.Enabled=false end)
+DotM.MouseButton1Click:Connect(function() conMin=not conMin CScroll.Visible=not conMin CSep.Visible=not conMin CF.Size=conMin and UDim2.fromOffset(400,30) or UDim2.fromOffset(400,240) end)
+DotZ.MouseButton1Click:Connect(function() CF.Size=CF.Size.Y.Offset<400 and UDim2.fromOffset(400,420) or UDim2.fromOffset(400,240) end)
+local ConC={info=Color3.fromRGB(170,170,200),loot=Color3.fromRGB(75,215,100),chest=Color3.fromRGB(255,195,40),fish=Color3.fromRGB(55,170,255),staff=Color3.fromRGB(255,65,65),kill=Color3.fromRGB(255,105,45),warn=Color3.fromRGB(255,148,28),sys=Color3.fromRGB(140,95,225),core=Color3.fromRGB(160,100,255)}
+local conLine=0
+local function ConLog(msg,kind) conLine=conLine+1 local row=Instance.new("Frame",CScroll) row.LayoutOrder=conLine row.Size=UDim2.new(1,0,0,17) row.AutomaticSize=Enum.AutomaticSize.Y row.BorderSizePixel=0 row.BackgroundColor3=conLine%2==0 and Color3.fromRGB(28,26,36) or Color3.fromRGB(20,20,26) row.BackgroundTransparency=conLine%2==0 and 0.35 or 1 local t=Instance.new("TextLabel",row) t.Size=UDim2.new(1,0,0,17) t.BackgroundTransparency=1 t.TextColor3=ConC[kind or "info"] or ConC.info t.Font=Enum.Font.Code t.TextSize=12 t.TextXAlignment=Enum.TextXAlignment.Left t.TextWrapped=true t.AutomaticSize=Enum.AutomaticSize.Y t.RichText=true local ts=os.date("*t") t.Text=string.format('<font color="#50507A">[%02d:%02d:%02d]</font> %s',ts.hour,ts.min,ts.sec,msg) task.defer(function() CScroll.CanvasPosition=Vector2.new(0,math.huge) end) local n=0 for _,c in pairs(CScroll:GetChildren()) do if c:IsA("Frame") then n=n+1 end end if n>150 then for _,c in pairs(CScroll:GetChildren()) do if c:IsA("Frame") then c:Destroy() break end end end end
+local drg,drgS,drgP=false
+CTB.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drg=true drgS=i.Position drgP=CF.Position end end)
+UIS.InputChanged:Connect(function(i) if drg and (i.UserInputType==Enum.UserInputType.MouseMovement or i.UserInputType==Enum.UserInputType.Touch) then local d=i.Position-drgS local vp=Cam.ViewportSize CF.Position=UDim2.fromOffset(math.clamp(drgP.X.Offset+d.X,0,vp.X-400),math.clamp(drgP.Y.Offset+d.Y,0,vp.Y-30)) end end)
+UIS.InputEnded:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 or i.UserInputType==Enum.UserInputType.Touch then drg=false end end)
+local function AnimDelta(anchorInst,delta) if not anchorInst or not pcall(function() return anchorInst.Parent end) then return end local ok,abs=pcall(function() return anchorInst.AbsolutePosition end) if not ok then return end local sz=anchorInst.AbsoluteSize local sg=Instance.new("ScreenGui",CoreGui) sg.Name="PW_Delta" sg.ResetOnSpawn=false local lbl=Instance.new("TextLabel",sg) lbl.BackgroundTransparency=1 lbl.Font=Enum.Font.GothamBold lbl.TextSize=15 lbl.TextStrokeTransparency=0.3 lbl.TextColor3=delta>0 and Color3.fromRGB(55,220,80) or Color3.fromRGB(255,55,55) lbl.Text=(delta>0 and "+" or "")..FmtDot(delta) lbl.Size=UDim2.fromOffset(180,22) local cx=abs.X+sz.X/2-90 local cy=abs.Y-5 lbl.Position=UDim2.fromOffset(cx,cy) TweenS:Create(lbl,TweenInfo.new(1.6,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{Position=UDim2.fromOffset(cx,cy-(delta>0 and 58 or 42)),TextTransparency=1,TextStrokeTransparency=1}):Play() task.delay(1.7,function() sg:Destroy() end) end
+local ENABLE_CUSTOM_UI=false local prevGold,prevArena=nil,nil
+task.spawn(function() task.wait(3) local pg=LP:WaitForChild("PlayerGui") local remote=Rem:FindFirstChild("GetInventoryData") local fok,formulas=pcall(function() return require(RepS.Modules:WaitForChild("Formulas",5)) end) if not fok then formulas=nil end local mainHUD=pg:FindFirstChild("MainHUD") if not mainHUD then return end local goldOrig=mainHUD:FindFirstChild("GoldDisplayFrame") local arenaTxt=mainHUD:FindFirstChild("ArenaPointsDisplayFrame") and mainHUD.ArenaPointsDisplayFrame:FindFirstChild("ArenaPointsText") local goldClone,goldText if goldOrig then goldClone=goldOrig:Clone() goldClone.Name="GoldDisplayFrame_Custom" goldClone.Parent=goldOrig.Parent goldClone.Visible=false goldText=goldClone:FindFirstChild("GoldText") end local xpClone,levelText,bar,xpText,xpFrame local sc=pg:FindFirstChild("HotBarGUI") and pg.HotBarGUI:FindFirstChild("StatsDisplayController") if sc then xpFrame=sc.Parent:FindFirstChild("ExperienceFrame") end if xpFrame then xpClone=xpFrame:Clone() xpClone.Name="ExperienceFrame_Custom" xpClone.Parent=xpFrame.Parent xpClone.Visible=false levelText=xpClone.LevelTextImage and xpClone.LevelTextImage:FindFirstChild("LevelText") bar=xpClone:FindFirstChild("Bar") xpText=xpClone.XpImageBack and xpClone.XpImageBack:FindFirstChild("XPText") end local function updXP(lv,xp) if not (levelText and bar and xpText and formulas) then return end levelText.Text="Lv "..lv local req=formulas.GetXPRequiredForNextLevel(lv) local prev=(lv>1 and formulas.XP_REQUIRED_FOR_LEVEL and formulas.XP_REQUIRED_FOR_LEVEL[lv-1]) or 0 if not req then bar.Size=UDim2.new(1,0,1,0) xpText.Text="MAX" return end bar.Size=UDim2.new(math.clamp((xp-prev)/math.max(req-prev,1),0,1),0,1,0) xpText.Text=FmtDot(xp).." / "..FmtDot(req) end while true do if ENABLE_CUSTOM_UI then if goldClone then goldClone.Visible=true end if xpClone then xpClone.Visible=true end if goldOrig then goldOrig.Visible=false end if xpFrame then xpFrame.Visible=false end if remote then local ok,data=pcall(function() return remote:InvokeServer() end) if ok and data then if goldText then local g=math.floor(data.Money or 0) goldText.Text=FmtDot(g) if prevGold and g~=prevGold and goldClone then AnimDelta(goldClone,g-prevGold) end prevGold=g end updXP(data.Level or 1,data.XP or 0) end end if arenaTxt then local num=tonumber(arenaTxt.Text:match("%d+")) if num then local fmt=FmtDot(num) if arenaTxt.Text~=fmt then if prevArena and num~=prevArena then AnimDelta(arenaTxt.Parent,num-prevArena) end prevArena=num arenaTxt.Text=fmt end end end else if goldClone then goldClone.Visible=false end if xpClone then xpClone.Visible=false end if goldOrig then goldOrig.Visible=true end if xpFrame then xpFrame.Visible=true end end task.wait(1) end end)
+local EspObjs={} local MobEspObjs={} local ChestEspObjs={} local TargetEspObjs={}
+local function InitEsp(p) local e={N=Drawing.new("Text"),B=Drawing.new("Square"),L=Drawing.new("Line"),D=Drawing.new("Text"),H=Drawing.new("Text"),C=Color3.fromHSV(math.random(),1,1)} e.N.Size=15 e.N.Center=true e.N.Outline=true e.B.Thickness=1.2 e.B.Filled=false e.L.Thickness=1.2 e.D.Size=12 e.D.Center=true e.D.Outline=true e.D.Color=Color3.new(1,1,0) e.H.Size=12 e.H.Center=true e.H.Outline=true e.H.Color=Color3.fromRGB(255,100,100) EspObjs[p]=e end
+for _,p in pairs(Plrs:GetPlayers()) do if p~=LP then InitEsp(p) end end
+local staffNotified={}
+local function CheckStaff(p) if not Cfg.StaffD or staffNotified[p.UserId] then return end task.spawn(function() local isSt=false if game.CreatorType==Enum.CreatorType.Group then local ok,r=pcall(function() return p:GetRankInGroup(game.CreatorId) end) if ok and r>=200 then isSt=true end elseif game.CreatorType==Enum.CreatorType.User then if p.UserId==game.CreatorId then isSt=true end end if not isSt then task.wait(3) pcall(function() for _,g in pairs(p.PlayerGui:GetChildren()) do local n=g.Name:lower() if n:find("admin") or n:find("staff") or n:find("mod") then isSt=true end end end) end if isSt then staffNotified[p.UserId]=true WindUI:Notify({Title="⚠ STAFF",Content=p.Name.." may be staff!",Duration=15}) ConLog("🚨 STAFF: "..p.Name,"staff") end end) end
+Plrs.PlayerAdded:Connect(function(p) InitEsp(p) CheckStaff(p) end)
+Plrs.PlayerRemoving:Connect(function(p) staffNotified[p.UserId]=nil if EspObjs[p] then for k,v in pairs(EspObjs[p]) do if k~="C" then v:Remove() end end EspObjs[p]=nil end end)
+local selectedMobNames={} local targetMode="Empty" local modeLabel local mobDropdown
+local function GetMobNames() local seen={} local names={} for _,mob in pairs(CS:GetTagged("Monster")) do if not seen[mob.Name] then seen[mob.Name]=true table.insert(names,mob.Name) end end return names end
+local function RebuildLabel() if not modeLabel then return end if targetMode=="Empty" then modeLabel:SetTitle("Target: None") elseif targetMode=="All" then modeLabel:SetTitle("Target: All Monsters") else local names={} for n in pairs(selectedMobNames) do table.insert(names,n) end modeLabel:SetTitle(#names==0 and "Target: None" or "Target: "..table.concat(names,", ")) if targetMode~="All" then targetMode=#names>0 and "Custom" or "Empty" end end end
+TC:Section({Title="Monster Targeting",TextXAlignment="Left",TextSize=17})
+modeLabel=TC:Paragraph({Title="Target: None",Desc=""})
+TC:Dropdown({Title="Target Mode",Desc="Select which monsters to attack",Values={"All Monsters","None"},Default="None",Multi=false,Callback=function(v) if v=="All Monsters" then targetMode="All" elseif v=="None" then targetMode="Empty" selectedMobNames={} end RebuildLabel() end})
+mobDropdown=TC:Dropdown({Title="Select Monsters",Desc="Pick specific monsters (refresh first)",Values=GetMobNames(),Default={},Multi=true,Callback=function(vals) selectedMobNames={} for _,n in pairs(vals) do selectedMobNames[n]=true end targetMode=next(selectedMobNames) and "Custom" or "Empty" RebuildLabel() end})
+TC:Button({Title="↺ Refresh Monster List",Desc="Re-scan workspace for monster names",Callback=function() local names=GetMobNames() mobDropdown:Refresh(names,{}) WindUI:Notify({Title="Refreshed",Content=#names.." monsters found",Duration=3}) end})
+TC:Section({Title="Kill Aura",TextXAlignment="Left",TextSize=17})
+TC:Dropdown({Title="Attack Interval",Desc="Time between each attack",Values={"0.05s","0.1s","0.2s","0.3s","0.4s","0.5s","0.6s","0.7s","0.8s","0.9s","1.0s"},Default="0.1s",Multi=false,Callback=function(v) Cfg.AuraInterval=tonumber(v:match("[%d%.]+")) end})
+local killThread=nil
+TC:Toggle({Title="Kill Aura",Desc="Fire AttackRemote at selected monsters",Default=false,Callback=function(v) Cfg.KillAura=v if v then killThread=task.spawn(function() while Cfg.KillAura do local char=LP.Character local root=char and char:FindFirstChild("HumanoidRootPart") if root then local targets={} for _,mob in pairs(CS:GetTagged("Monster")) do local hum=mob:FindFirstChildOfClass("Humanoid") local mr=mob:FindFirstChild("HumanoidRootPart") if mr and hum and hum.Health>0 then local inRange=(root.Position-mr.Position).Magnitude<=Cfg.AuraDist local isTarget=targetMode=="All" or (targetMode=="Custom" and selectedMobNames[mob.Name]) if isTarget and inRange then table.insert(targets,{mob=mob,mr=mr,hum=hum}) end end end for _,t in pairs(targets) do if not Cfg.KillAura then break end local pos=t.mr.Position pcall(function() Rem.AttackRemote:FireServer(Vector3.new(pos.X,pos.Y,pos.Z)) end) ConLog("⚔ "..t.mob.Name.." ["..math.floor(t.hum.Health).."hp]","kill") if targetMode~="All" then break end end end task.wait(Cfg.AuraInterval) end end) else ConLog("Kill Aura OFF","warn") if killThread then task.cancel(killThread) killThread=nil end end end})
+TC:Toggle({Title="Aura Range Sphere",Desc="Show sphere around aura range",Default=false,Callback=function(v) Cfg.AuraVisible=v if not v then AuraPart.Parent=nil end end})
+TC:Slider({Title="Aura Distance",Desc="Kill Aura range in studs",Step=10,Min=10,Max=1000,Value=Cfg.AuraDist,Callback=function(v) Cfg.AuraDist=v AuraPart.Size=Vector3.new(v*2,v*2,v*2) end})
+TC:Section({Title="Hitboxes",TextXAlignment="Left",TextSize=17})
+TC:Toggle({Title="Expand Player Hitboxes",Desc="Resize HRP on other players",Default=false,Callback=function(v) Cfg.Hitbox=v end})
+TC:Slider({Title="Player Hitbox Size",Desc="HRP size in studs",Step=1,Min=2,Max=60,Value=Cfg.HSize,Callback=function(v) Cfg.HSize=v end})
+TC:Toggle({Title="Expand Monster Hitboxes",Desc="Resize HRP on monsters",Default=false,Callback=function(v) Cfg.MobHitbox=v end})
+TC:Slider({Title="Monster Hitbox Size",Desc="Monster HRP size in studs",Step=1,Min=2,Max=120,Value=Cfg.MobHSize,Callback=function(v) Cfg.MobHSize=v end})
+TC:Section({Title="Pets",TextXAlignment="Left",TextSize=17})
+TC:Toggle({Title="Auto Pet Ability",Desc="Fire pet skill remotes every second",Default=false,Callback=function(v) Cfg.AutoPet=v if v then task.spawn(function() while Cfg.AutoPet do pcall(function() Rem.RequestManualHenchAbility:FireServer(1) Rem.RequestManualHenchAbility:FireServer(2) end) task.wait(1) end end) end end})
+TF:Section({Title="Fishing",TextXAlignment="Left",TextSize=17})
+local fishCount=0
+TF:Toggle({Title="Auto Fishing",Desc="Call HandleCatchAttempt repeatedly",Default=false,Callback=function(v) Cfg.AutoC=v if v then task.spawn(function() while Cfg.AutoC do local ok=pcall(function() Rem.HandleCatchAttempt:InvokeServer() end) if ok then fishCount=fishCount+1 ConLog("🎣 Fish #"..fishCount,"fish") end task.wait(Cfg.FishInterval) end end) end end})
+TF:Dropdown({Title="Fishing Interval",Desc="Speed of auto fishing",Values={"0.05s","0.1s","0.2s","0.3s","0.5s","1.0s"},Default="0.1s",Multi=false,Callback=function(v) Cfg.FishInterval=tonumber(v:match("[%d%.]+")) end})
+TF:Button({Title="Reset Fish Counter",Desc="Reset to 0",Callback=function() fishCount=0 WindUI:Notify({Title="Counter",Content="Reset!",Duration=3}) end})
+TF:Section({Title="Loot & Chests",TextXAlignment="Left",TextSize=17})
+TF:Toggle({Title="Auto Collect Drops",Desc="RequestLootPickup for each item in Loot",Default=false,Callback=function(v) Cfg.AutoCollect=v if v then task.spawn(function() while Cfg.AutoCollect do local lf=workspace:FindFirstChild("Loot") if lf then local snap=lf:GetChildren() for _,item in pairs(snap) do if not Cfg.AutoCollect then break end if item and item.Parent then pcall(function() Rem.RequestLootPickup:FireServer(item) ConLog("💎 "..item.Name,"loot") end) end task.wait(0.1) end end task.wait(0.5) end end) end end})
+TF:Toggle({Title="Bring Gold Chests",Desc="Teleport GoldChest hitboxes to you",Default=false,Callback=function(v) Cfg.BringC=v if v then task.spawn(function() while Cfg.BringC do local snap={} for _,o in pairs(workspace:GetDescendants()) do if o.Name=="HitBox" and o.Parent and o.Parent.Name=="GoldChest" then table.insert(snap,o) end end for _,o in pairs(snap) do if not Cfg.BringC then break end if o and o.Parent and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then o.CFrame=LP.Character.HumanoidRootPart.CFrame ConLog("🏆 Chest pulled","chest") task.wait(0.3) end end task.wait(1) end end) end end})
+TF:Toggle({Title="Instant Prompts",Desc="Set HoldDuration=0 on all ProximityPrompts",Default=false,Callback=function(v) Cfg.InstP=v if v then task.spawn(function() while Cfg.InstP do for _,p in pairs(workspace:GetDescendants()) do if p:IsA("ProximityPrompt") then p.HoldDuration=0 end end task.wait(1) end end) end end})
+TF:Section({Title="Merge",TextXAlignment="Left",TextSize=17})
+local AutoMergeSpeed=1 local AutoMerge=false
+TF:Input({Title="Merge Speed (s)",Desc="Interval between auto merges",PlaceholderText="1",ClearTextOnFocus=false,Callback=function(v) local n=tonumber(v) if n and n>0 then AutoMergeSpeed=n end end})
+local function DoMerge() pcall(function() local d=GetInv() if not d then return end local cores=d.HenchCoreInventory local ids={} for _,c in ipairs(cores) do if not c.IsEquipped and c.IsAlive then table.insert(ids,c.InstanceID) end end local merged=0 for i=1,#ids-1,2 do Rem.AttemptNormalMerge:InvokeServer(ids[i],ids[i+1]) merged=merged+1 end ConLog("🔀 Merged "..merged.." pairs ("..#ids.." cores)","core") end) end
+TF:Toggle({Title="Auto Merge",Desc="Automatically merge unequipped alive cores",Default=false,Callback=function(v) AutoMerge=v if v then task.spawn(function() while AutoMerge do DoMerge() task.wait(AutoMergeSpeed) end end) end end})
+TF:Button({Title="Merge All Now",Desc="Single merge of all unequipped alive cores",Callback=function() DoMerge() end})
+TF:Section({Title="Revive",TextXAlignment="Left",TextSize=17})
+local AutoReviveSpeed=5 local AutoRevive=false
+TF:Input({Title="Revive Speed (s)",Desc="Interval between auto revives",PlaceholderText="5",ClearTextOnFocus=false,Callback=function(v) local n=tonumber(v) if n and n>0 then AutoReviveSpeed=n end end})
+local function DoRevive() pcall(function() local d=GetInv() if not d then return end local revived=0 for _,c in ipairs(d.HenchCoreInventory) do if not c.IsAlive then Rem.RequestReviveCore:InvokeServer(c.InstanceID) revived=revived+1 end end ConLog("💊 Revived "..revived.." cores","core") end) end
+TF:Toggle({Title="Auto Revive",Desc="Automatically revive dead cores",Default=false,Callback=function(v) AutoRevive=v if v then task.spawn(function() while AutoRevive do DoRevive() task.wait(AutoReviveSpeed) end end) end end})
+TF:Button({Title="Revive All Now",Desc="Single revive of all dead cores",Callback=function() DoRevive() end})
+local invLabel local invLabel2 local invLabel3
+TK:Section({Title="Inventory Overview",TextXAlignment="Left",TextSize=17})
+invLabel=TK:Paragraph({Title="Total Cores: —",Desc="Press Refresh to load"})
+invLabel2=TK:Paragraph({Title="Alive / Dead: —",Desc=""})
+invLabel3=TK:Paragraph({Title="Equipped / Unequipped: —",Desc=""})
+TK:Button({Title="↺ Refresh Inventory",Desc="Fetch latest inventory data",Callback=function()
+    local d=GetInv() if not d then WindUI:Notify({Title="Error",Content="Failed to fetch inventory",Duration=3}) return end
+    local cores=d.HenchCoreInventory or {}
+    local total=#cores local alive,dead,equip,unequip,maxLv,rarities=0,0,0,0,0,{}
+    for _,c in ipairs(cores) do
+        if c.IsAlive then alive=alive+1 else dead=dead+1 end
+        if c.IsEquipped then equip=equip+1 else unequip=unequip+1 end
+        if c.Level and c.Level>maxLv then maxLv=c.Level end
+        if c.Rarity then rarities[c.Rarity]=(rarities[c.Rarity] or 0)+1 end
+    end
+    invLabel:SetTitle("Total Cores: "..total.."  |  Money: "..FmtDot(d.Money or 0).."  |  Lv: "..(d.Level or "?"))
+    invLabel2:SetTitle("Alive: "..alive.."  Dead: "..dead.."  |  Highest Core Lv: "..maxLv)
+    invLabel3:SetTitle("Equipped: "..equip.."  Unequipped: "..unequip)
+    local rarStr="" for r,cnt in pairs(rarities) do rarStr=rarStr..r..":"..cnt.." " end
+    ConLog("📦 Inv → "..total.." cores | "..alive.." alive | "..equip.." equipped | Rarities: "..rarStr,"core")
+    WindUI:Notify({Title="Inventory",Content=total.." cores | "..alive.." alive | "..dead.." dead",Duration=5})
+end})
+TK:Section({Title="Core Actions",TextXAlignment="Left",TextSize=17})
+TK:Button({Title="Revive All Dead Cores",Desc="Instant revive via remote",Callback=function() DoRevive() end})
+TK:Button({Title="Merge All Unequipped",Desc="Instant merge via remote",Callback=function() DoMerge() end})
+TK:Button({Title="Equip Best Cores",Desc="Sort by Level desc and request equip on top cores",Callback=function()
+    pcall(function() local d=GetInv() if not d then return end local cores=d.HenchCoreInventory or {} table.sort(cores,function(a,b) return (a.Level or 0)>(b.Level or 0) end) local count=0 for _,c in ipairs(cores) do if not c.IsEquipped and c.IsAlive and count<6 then pcall(function() Rem.RequestEquipCore:FireServer(c.InstanceID) end) count=count+1 ConLog("⭐ Equipped core Lv"..(c.Level or "?").." ["..c.InstanceID.."]","core") end end WindUI:Notify({Title="Equip",Content="Equipped "..count.." best cores",Duration=4}) end)
+end})
+TK:Button({Title="Unequip All Cores",Desc="Unequip every equipped core",Callback=function()
+    pcall(function() local d=GetInv() if not d then return end local count=0 for _,c in ipairs(d.HenchCoreInventory or {}) do if c.IsEquipped then pcall(function() Rem.RequestUnequipCore:FireServer(c.InstanceID) end) count=count+1 end end ConLog("🔓 Unequipped "..count.." cores","core") WindUI:Notify({Title="Unequip",Content="Unequipped "..count.." cores",Duration=4}) end)
+end})
+TK:Section({Title="Auto Core Manager",TextXAlignment="Left",TextSize=17})
+local AutoManager=false local AutoManagerSpeed=30
+TK:Input({Title="Manager Interval (s)",Desc="How often to run full cycle: revive→merge→equip best",PlaceholderText="30",ClearTextOnFocus=false,Callback=function(v) local n=tonumber(v) if n and n>0 then AutoManagerSpeed=n end end})
+TK:Toggle({Title="Auto Core Manager",Desc="Auto: Revive dead → Merge unequipped → Equip best",Default=false,Callback=function(v) AutoManager=v if v then task.spawn(function() while AutoManager do
+    pcall(function()
+        local d=GetInv() if not d then return end
+        local cores=d.HenchCoreInventory or {}
+        for _,c in ipairs(cores) do if not c.IsAlive then pcall(function() Rem.RequestReviveCore:InvokeServer(c.InstanceID) end) end end
+        task.wait(0.5)
+        d=GetInv() if not d then return end cores=d.HenchCoreInventory or {}
+        local ids={} for _,c in ipairs(cores) do if not c.IsEquipped and c.IsAlive then table.insert(ids,c.InstanceID) end end
+        for i=1,#ids-1,2 do Rem.AttemptNormalMerge:InvokeServer(ids[i],ids[i+1]) end
+        task.wait(0.5)
+        d=GetInv() if not d then return end cores=d.HenchCoreInventory or {}
+        table.sort(cores,function(a,b) return (a.Level or 0)>(b.Level or 0) end)
+        local eq=0 for _,c in ipairs(cores) do if not c.IsEquipped and c.IsAlive and eq<6 then pcall(function() Rem.RequestEquipCore:FireServer(c.InstanceID) end) eq=eq+1 end end
+        ConLog("🤖 AutoManager: revived+merged+equipped "..eq,"core")
+    end)
+    task.wait(AutoManagerSpeed)
+end end) end end})
+TK:Section({Title="Arena & Stats",TextXAlignment="Left",TextSize=17})
+local arenaLabel=TK:Paragraph({Title="Arena Points: —",Desc="Press Refresh to load"})
+local moneyLabel=TK:Paragraph({Title="Gold / XP / Level: —",Desc=""})
+TK:Button({Title="↺ Refresh Stats",Desc="Fetch money, XP, arena points",Callback=function()
+    local d=GetInv() if not d then return end
+    arenaLabel:SetTitle("Arena Points: "..FmtDot(d.ArenaPoints or 0).."  |  Arena Rank: "..(d.ArenaRank or "?"))
+    moneyLabel:SetTitle("Gold: "..FmtDot(d.Money or 0).."  XP: "..FmtDot(d.XP or 0).."  Lv: "..(d.Level or "?"))
+    ConLog("📊 Gold:"..FmtDot(d.Money or 0).." XP:"..FmtDot(d.XP or 0).." Arena:"..FmtDot(d.ArenaPoints or 0),"sys")
+end})
+LP.CharacterAdded:Connect(function(char) local hum=char:WaitForChild("Humanoid") task.wait(0.5) hum.WalkSpeed=Cfg.WalkSpeed hum.JumpPower=Cfg.JumpPower end)
+local flyUD=0
+UIS.InputBegan:Connect(function(i,gp) if gp then return end if Cfg.Fly then if i.KeyCode==Enum.KeyCode.Space then flyUD=1 elseif i.KeyCode==Enum.KeyCode.LeftShift then flyUD=-1 end end end)
+UIS.InputEnded:Connect(function(i) if i.KeyCode==Enum.KeyCode.Space or i.KeyCode==Enum.KeyCode.LeftShift then flyUD=0 end end)
+TM:Section({Title="Speed & Jump",TextXAlignment="Left",TextSize=17})
+TM:Slider({Title="WalkSpeed",Desc="Character walk speed",Step=1,Min=16,Max=250,Value=Cfg.WalkSpeed,Callback=function(v) Cfg.WalkSpeed=v if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.WalkSpeed=v end if Cfg.SaveCfg then SaveCfg() end end})
+TM:Slider({Title="JumpPower",Desc="Character jump height",Step=1,Min=50,Max=250,Value=Cfg.JumpPower,Callback=function(v) Cfg.JumpPower=v if LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid.JumpPower=v end if Cfg.SaveCfg then SaveCfg() end end})
+TM:Toggle({Title="Infinite Jump",Desc="Jump while mid-air",Default=false,Callback=function(v) Cfg.InfJ=v end})
+UIS.JumpRequest:Connect(function() if Cfg.InfJ and LP.Character and LP.Character:FindFirstChild("Humanoid") then LP.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end end)
+TM:Toggle({Title="Noclip",Desc="No collision on character parts",Default=false,Callback=function(v) Cfg.Noclip=v end})
+TM:Section({Title="Flight",TextXAlignment="Left",TextSize=17})
+TM:Toggle({Title="Camera Fly",Desc="Fly in camera direction (Space=up, Shift=down)",Default=false,Callback=function(v) Cfg.Fly=v if not v then local c=LP.Character if c then local h=c:FindFirstChild("HumanoidRootPart") local hm=c:FindFirstChild("Humanoid") if h then if h:FindFirstChild("FlyBody") then h.FlyBody:Destroy() end if h:FindFirstChild("FlyGyro") then h.FlyGyro:Destroy() end end if hm then hm.PlatformStand=false end end end end})
+TM:Slider({Title="Fly Speed",Desc="Flight speed",Step=5,Min=10,Max=500,Value=Cfg.FlySpeed,Callback=function(v) Cfg.FlySpeed=v end})
+TM:Toggle({Title="Freecam",Desc="Detach camera from character",Default=false,Callback=function(v) Cfg.Freecam=v if v then if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then LP.Character.HumanoidRootPart.Anchored=true end FCPart.Position=Cam.CFrame.Position FCPart.Parent=workspace Cam.CameraSubject=FCPart else FCPart.Parent=nil local c=LP.Character if c then local h=c:FindFirstChild("HumanoidRootPart") local hm=c:FindFirstChild("Humanoid") if h then h.Anchored=false end if hm then Cam.CameraSubject=hm end end end end})
+TM:Slider({Title="Freecam Speed",Desc="Free camera speed",Step=1,Min=1,Max=30,Value=Cfg.FCSpeed,Callback=function(v) Cfg.FCSpeed=v end})
+TM:Section({Title="Misc",TextXAlignment="Left",TextSize=17})
+TM:Toggle({Title="Anti AFK",Desc="Prevent Roblox idle disconnect",Default=false,Callback=function(v) Cfg.AFK=v end})
+LP.Idled:Connect(function() if Cfg.AFK then VU:Button2Down(Vector2.zero,Cam.CFrame) task.wait(1) VU:Button2Up(Vector2.zero,Cam.CFrame) end end)
+TM:Button({Title="Force Respawn",Desc="Kills and respawns your character",Callback=function() if LP.Character then LP.Character:BreakJoints() end end})
+TV:Section({Title="Player ESP",TextXAlignment="Left",TextSize=17})
+TV:Toggle({Title="ESP Names",Desc="Player name labels",Default=false,Callback=function(v) Cfg.EspN=v end})
+TV:Toggle({Title="ESP Boxes",Desc="2D boxes around players",Default=false,Callback=function(v) Cfg.EspB=v end})
+TV:Toggle({Title="ESP Lines",Desc="Tracers to players",Default=false,Callback=function(v) Cfg.EspL=v end})
+TV:Toggle({Title="ESP Distance",Desc="Distance in meters",Default=false,Callback=function(v) Cfg.EspDist=v end})
+TV:Toggle({Title="Player Health",Desc="HP % near player box",Default=false,Callback=function(v) Cfg.PlayerHealth=v end})
+TV:Toggle({Title="Unique Colors",Desc="Random color per player",Default=false,Callback=function(v) Cfg.RndC=v end})
+TV:Section({Title="Monster & World ESP",TextXAlignment="Left",TextSize=17})
+TV:Toggle({Title="Monster ESP",Desc="Label monsters in world",Default=false,Callback=function(v) Cfg.MobEsp=v end})
+TV:Toggle({Title="Monster Health",Desc="Show HP on monster labels",Default=false,Callback=function(v) Cfg.MobHealth=v end})
+TV:Toggle({Title="Chest ESP",Desc="Highlight Gold Chests",Default=false,Callback=function(v) Cfg.ChestEsp=v end})
+TV:Section({Title="HUD",TextXAlignment="Left",TextSize=17})
+TV:Toggle({Title="Crosshair",Desc="Thin 1px crosshair at screen center",Default=false,Callback=function(v) Cfg.Crosshair=v CrossGui.Enabled=v end})
+TV:Toggle({Title="On-Screen Stats",Desc="FPS, Ping, Players",Default=false,Callback=function(v) Cfg.StatsUI=v StatsGui.Enabled=v end})
+local origPD={} local hidFX={} local hidMesh={} local hidGui={} local origL={} local origT={} local disScr={}
+local function LOD_L(e) if e then origL={shadow=Lighting.GlobalShadows,tech=Lighting.Technology,bright=Lighting.Brightness,amb=Lighting.Ambient,fog=Lighting.FogEnd,oamb=Lighting.OutdoorAmbient} Lighting.GlobalShadows=false Lighting.Technology=Enum.Technology.Compatibility Lighting.Brightness=1 Lighting.Ambient=Color3.new(0.5,0.5,0.5) Lighting.OutdoorAmbient=Color3.new(0.5,0.5,0.5) Lighting.FogEnd=1e6 for _,fx in pairs(Lighting:GetChildren()) do if fx:IsA("PostEffect") then fx.Enabled=false end end else if origL.shadow~=nil then Lighting.GlobalShadows=origL.shadow end if origL.tech then Lighting.Technology=origL.tech end if origL.bright then Lighting.Brightness=origL.bright end if origL.amb then Lighting.Ambient=origL.amb end if origL.oamb then Lighting.OutdoorAmbient=origL.oamb end if origL.fog then Lighting.FogEnd=origL.fog end for _,fx in pairs(Lighting:GetChildren()) do if fx:IsA("PostEffect") then fx.Enabled=true end end end end
+local function LOD_T(e) if e then origT={w=workspace.Terrain.WaterWaveSize,d=workspace.Terrain.Decoration,ws=workspace.Terrain.WaterWaveSpeed} workspace.Terrain.WaterWaveSize=0 workspace.Terrain.WaterWaveSpeed=0 workspace.Terrain.Decoration=false else if origT.w then workspace.Terrain.WaterWaveSize=origT.w end if origT.ws then workspace.Terrain.WaterWaveSpeed=origT.ws end workspace.Terrain.Decoration=origT.d~=nil and origT.d or true end end
+local function LOD_P(e) for _,p in pairs(workspace:GetDescendants()) do if p:IsA("BasePart") and not (LP.Character and p:IsDescendantOf(LP.Character)) then if e then if not origPD[p] then origPD[p]={c=p.CastShadow} end p.CastShadow=false else if origPD[p] then p.CastShadow=origPD[p].c origPD[p]=nil end end end end end
+local function LOD_FX(e) if e then for _,fx in pairs(workspace:GetDescendants()) do if fx:IsA("ParticleEmitter") or fx:IsA("Beam") or fx:IsA("Trail") or fx:IsA("Fire") or fx:IsA("Smoke") or fx:IsA("Sparkles") then if fx.Enabled~=false then hidFX[fx]=true fx.Enabled=false end end end else for fx in pairs(hidFX) do pcall(function() fx.Enabled=true end) end hidFX={} end end
+local function LOD_M(e) if e then for _,o in pairs(workspace:GetDescendants()) do if (o:IsA("SpecialMesh") or o:IsA("SurfaceAppearance") or o:IsA("Texture") or o:IsA("Decal")) and o.Parent and not hidMesh[o] then hidMesh[o]=o.Parent o.Parent=nil end end else for o,par in pairs(hidMesh) do pcall(function() o.Parent=par end) end hidMesh={} end end
+local function LOD_G(e) if e then for _,g in pairs(LP.PlayerGui:GetChildren()) do if g:IsA("ScreenGui") and g.Enabled and g.Name~="PW_Stats" and g.Name~="PW_Cross" and g.Name~="PW_Console" then hidGui[g]=true g.Enabled=false end end else for g in pairs(hidGui) do pcall(function() g.Enabled=true end) end hidGui={} end end
+local function LOD_S(e) if e then for _,s in pairs(LP.PlayerGui:GetDescendants()) do if s:IsA("LocalScript") and not s.Disabled then disScr[s]=true s.Disabled=true end end else for s in pairs(disScr) do pcall(function() s.Disabled=false end) end disScr={} end end
+local function LOD_Sky(e) for _,s in pairs(Lighting:GetChildren()) do if s:IsA("Sky") then s.Parent=e and nil or Lighting end end end
+local function LOD_Atm(e) for _,a in pairs(Lighting:GetChildren()) do if a:IsA("Atmosphere") then a.Density=e and 0 or 0.395 a.Haze=e and 0 or 0 end end end
+TP:Toggle({Title="Disable Shadows & PostFX",Desc="No global shadows, no post-processing",Default=false,Callback=function(v) LOD_L(v) end})
+TP:Toggle({Title="Simplify Terrain",Desc="No water waves or decoration",Default=false,Callback=function(v) LOD_T(v) end})
+TP:Toggle({Title="No Part Shadows",Desc="CastShadow=false on all world parts",Default=false,Callback=function(v) LOD_P(v) end})
+TP:Toggle({Title="Remove Particles & VFX",Desc="Hide particles, beams, fire, smoke, trails",Default=false,Callback=function(v) LOD_FX(v) end})
+TP:Toggle({Title="Low Poly Mode",Desc="Remove meshes, textures, decals",Default=false,Callback=function(v) LOD_M(v) end})
+TP:Toggle({Title="Hide Game GUIs",Desc="Hide non-hub ScreenGuis",Default=false,Callback=function(v) LOD_G(v) end})
+TP:Toggle({Title="Disable GUI Scripts",Desc="Disable LocalScripts in PlayerGui",Default=false,Callback=function(v) LOD_S(v) end})
+TP:Toggle({Title="Remove Skybox",Desc="Unparent Sky from Lighting",Default=false,Callback=function(v) LOD_Sky(v) end})
+TP:Toggle({Title="Clear Atmosphere",Desc="Zero density and haze",Default=false,Callback=function(v) LOD_Atm(v) end})
+TP:Toggle({Title="Flat Material Mode",Desc="Force SmoothPlastic on all world parts",Default=false,Callback=function(v) for _,p in pairs(workspace:GetDescendants()) do if p:IsA("BasePart") and not (LP.Character and p:IsDescendantOf(LP.Character)) then if v then origPD[p]=origPD[p] or {} origPD[p].mat=origPD[p].mat or p.Material p.Material=Enum.Material.SmoothPlastic else if origPD[p] and origPD[p].mat then p.Material=origPD[p].mat end end end end end})
+TP:Slider({Title="Render Distance",Desc="Camera MaxAxisFieldOfView",Step=100,Min=100,Max=3000,Value=3000,Callback=function(v) Cam.MaxAxisFieldOfView=v end})
+TP:Button({Title="⚡ Full Performance Mode",Desc="Apply all optimizations",Callback=function() LOD_L(true) LOD_T(true) LOD_P(true) LOD_FX(true) LOD_Sky(true) LOD_Atm(true) WindUI:Notify({Title="Optimize",Content="All ON!",Duration=4}) ConLog("⚡ Max performance","warn") end})
+TP:Button({Title="↩ Restore All",Desc="Revert all performance changes",Callback=function() LOD_L(false) LOD_T(false) LOD_P(false) LOD_FX(false) LOD_M(false) LOD_G(false) LOD_S(false) LOD_Sky(false) LOD_Atm(false) WindUI:Notify({Title="Optimize",Content="Restored!",Duration=4}) ConLog("↩ Restored","info") end})
+TS2:Toggle({Title="Staff Detector",Desc="Alert if admin/owner joins",Default=false,Callback=function(v) Cfg.StaffD=v if v then for _,p in pairs(Plrs:GetPlayers()) do if p~=LP then CheckStaff(p) end end end end})
+TS2:Button({Title="Copy Server ID",Desc="Copy JobId to clipboard",Callback=function() setclipboard(game.JobId) WindUI:Notify({Title="Copied",Content=game.JobId,Duration=3}) end})
+TS2:Button({Title="Rejoin",Desc="Reconnect to the same server",Callback=function() TS:TeleportToPlaceInstance(game.PlaceId,game.JobId,LP) end})
+TS2:Button({Title="Server Hop — Emptiest",Desc="Join server with fewest players",Callback=function() pcall(function() local d=HttpReq("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100") if not d then return end local low={id="",p=999} for _,s in pairs(d.data) do if s.playing<low.p and s.id~=game.JobId then low={id=s.id,p=s.playing} end end if low.id~="" then ConLog("🌍 → "..low.p.." players","info") TS:TeleportToPlaceInstance(game.PlaceId,low.id,LP) end end) end})
+TS2:Button({Title="Server Hop — Random",Desc="Join a random active server",Callback=function() pcall(function() local d=HttpReq("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Desc&limit=100") if not d then return end local v={} for _,s in pairs(d.data) do if s.playing<s.maxPlayers and s.id~=game.JobId then table.insert(v,s.id) end end if #v>0 then ConLog("🌍 Random hop","info") TS:TeleportToPlaceInstance(game.PlaceId,v[math.random(1,#v)],LP) end end) end})
+TST:Toggle({Title="Custom HUD (Dot Format)",Desc="Replace Gold/XP/Arena with dot format + delta animations",Default=false,Callback=function(v) ENABLE_CUSTOM_UI=v ConLog("Custom HUD: "..(v and "ON" or "OFF"),"sys") end})
+TST:Toggle({Title="Show Console",Desc="Open / close the PW Console window",Default=false,Callback=function(v) ConsoleGui.Enabled=v end})
+TST:Toggle({Title="Auto Save Config",Desc="Auto-save sliders when changed",Default=false,Callback=function(v) Cfg.SaveCfg=v end})
+TST:Button({Title="Save Now",Desc="Manually write config to file",Callback=function() SaveCfg() WindUI:Notify({Title="Saved",Content="PetsWarOP/config.json",Duration=4}) end})
+TST:Button({Title="Reset Config",Desc="Delete saved config file",Callback=function() pcall(function() delfile("PetsWarOP/config.json") end) WindUI:Notify({Title="Reset",Content="Reinject to apply",Duration=4}) end})
+local HRP_DEF=Vector3.new(2,2,1)
+RS.RenderStepped:Connect(function(dt)
+    if Cfg.StatsUI then local now=tick() if now-lastStatT>=0.3 then cachedFPS=math.floor(1/dt) lastStatT=now end StatsTxt.Text=string.format('Plrs:<font color="#9999FF">%d</font>  FPS:<font color="%s">%d</font>  Ping:<font color="#FFCC44">%dms</font>',#Plrs:GetPlayers(),FpsClr(cachedFPS),cachedFPS,math.floor(LP:GetNetworkPing()*1000)) end
+    if Cfg.AuraVisible then local root=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") if root then local sz=Cfg.AuraDist*2 AuraPart.Size=Vector3.new(sz,sz,sz) AuraPart.CFrame=CFrame.new(root.Position) AuraPart.Parent=workspace else AuraPart.Parent=nil end else AuraPart.Parent=nil end
+    if Cfg.Fly and LP.Character then local hrp=LP.Character:FindFirstChild("HumanoidRootPart") local hum=LP.Character:FindFirstChild("Humanoid") if hrp and hum then hum.PlatformStand=true if not hrp:FindFirstChild("FlyBody") then local bv=Instance.new("BodyVelocity") bv.Name="FlyBody" bv.MaxForce=Vector3.new(9e9,9e9,9e9) bv.Parent=hrp end if not hrp:FindFirstChild("FlyGyro") then local bg=Instance.new("BodyGyro") bg.Name="FlyGyro" bg.MaxTorque=Vector3.new(9e9,9e9,9e9) bg.P=9e4 bg.Parent=hrp end local mv=Controls:GetMoveVector() hrp.FlyGyro.CFrame=Cam.CFrame hrp.FlyBody.Velocity=(Cam.CFrame.LookVector*-mv.Z+Cam.CFrame.RightVector*mv.X+Vector3.new(0,flyUD,0))*Cfg.FlySpeed end end
+    if Cfg.Freecam and FCPart.Parent then local mv=Controls:GetMoveVector() FCPart.Position=FCPart.Position+Cam.CFrame.LookVector*-mv.Z*Cfg.FCSpeed+Cam.CFrame.RightVector*mv.X*Cfg.FCSpeed end
+    if Cfg.Noclip and LP.Character then for _,bp in pairs(LP.Character:GetDescendants()) do if bp:IsA("BasePart") then bp.CanCollide=false end end end
+    for p,esp in pairs(EspObjs) do local char=p.Character if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health>0 then local hrp=char.HumanoidRootPart local head=char:FindFirstChild("Head") or hrp local hum=char.Humanoid if Cfg.Hitbox then hrp.Size=Vector3.new(Cfg.HSize,Cfg.HSize,Cfg.HSize) hrp.Transparency=0.7 hrp.CanCollide=false hrp.CanQuery=false else if hrp.Size~=HRP_DEF then hrp.Size=HRP_DEF hrp.Transparency=1 end end local top=head.Position+Vector3.new(0,0.5,0) local bot=hrp.Position-Vector3.new(0,3,0) local t2d,tV=Cam:WorldToViewportPoint(top) local b2d,bV=Cam:WorldToViewportPoint(bot) local clr=Cfg.RndC and esp.C or Color3.new(1,1,1) local dist=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and math.floor((LP.Character.HumanoidRootPart.Position-hrp.Position).Magnitude) or 0 if tV or bV then local h=math.abs(t2d.Y-b2d.Y) local w=h/2 esp.N.Visible=Cfg.EspN esp.N.Position=Vector2.new(t2d.X,t2d.Y-18) esp.N.Text=p.Name esp.N.Color=clr esp.B.Visible=Cfg.EspB esp.B.Size=Vector2.new(w,h) esp.B.Position=Vector2.new(t2d.X-w/2,t2d.Y) esp.B.Color=clr esp.L.Visible=Cfg.EspL esp.L.From=Vector2.new(Cam.ViewportSize.X/2,Cam.ViewportSize.Y) esp.L.To=Vector2.new(b2d.X,b2d.Y) esp.L.Color=clr esp.D.Visible=Cfg.EspDist esp.D.Position=Vector2.new(t2d.X,t2d.Y-32) esp.D.Text=dist.."m" esp.H.Visible=Cfg.PlayerHealth if Cfg.PlayerHealth then local rat=math.clamp(hum.Health/math.max(hum.MaxHealth,1),0,1) esp.H.Color=Color3.fromRGB(math.floor(255*(1-rat)),math.floor(255*rat),30) esp.H.Position=Vector2.new(t2d.X,b2d.Y+3) esp.H.Text=math.floor(rat*100).."%" end else esp.N.Visible=false esp.B.Visible=false esp.L.Visible=false esp.D.Visible=false esp.H.Visible=false end else esp.N.Visible=false esp.B.Visible=false esp.L.Visible=false esp.D.Visible=false esp.H.Visible=false end end
+    for _,mob in pairs(CS:GetTagged("Monster")) do local mr=mob:FindFirstChild("HumanoidRootPart") local hum=mob:FindFirstChildOfClass("Humanoid") local alive=mr and hum and hum.Health>0 if alive and Cfg.MobHitbox then mr.Size=Vector3.new(Cfg.MobHSize,Cfg.MobHSize,Cfg.MobHSize) mr.CanCollide=false mr.CanQuery=false mr.Transparency=0.75 end local isTarget=(targetMode=="All") or (targetMode=="Custom" and selectedMobNames[mob.Name]) if alive and isTarget then if not TargetEspObjs[mob] then local bx=Drawing.new("Square") bx.Thickness=2 bx.Filled=false bx.Color=Color3.fromRGB(255,40,40) local nm=Drawing.new("Text") nm.Size=15 nm.Center=true nm.Outline=true nm.Color=Color3.fromRGB(255,80,80) local hp=Drawing.new("Text") hp.Size=12 hp.Center=true hp.Outline=true hp.Color=Color3.fromRGB(255,210,60) TargetEspObjs[mob]={bx,nm,hp} end local tp=mr.Position+Vector3.new(0,5,0) local bp=mr.Position-Vector3.new(0,3,0) local t2d,tV=Cam:WorldToViewportPoint(tp) local b2d,bV=Cam:WorldToViewportPoint(bp) local e=TargetEspObjs[mob] if tV or bV then local h=math.abs(t2d.Y-b2d.Y) local w=math.max(h/1.5,32) e[1].Visible=true e[1].Size=Vector2.new(w,h) e[1].Position=Vector2.new(t2d.X-w/2,t2d.Y) e[2].Visible=true e[2].Position=Vector2.new(t2d.X,t2d.Y-18) e[2].Text="▶ "..mob.Name e[3].Visible=true e[3].Position=Vector2.new(t2d.X,b2d.Y+3) e[3].Text=FmtShort(hum.Health).."/"..FmtShort(hum.MaxHealth).."hp" else e[1].Visible=false e[2].Visible=false e[3].Visible=false end else if TargetEspObjs[mob] then if not alive then for _,d in pairs(TargetEspObjs[mob]) do d:Remove() end TargetEspObjs[mob]=nil end end if TargetEspObjs[mob] then for _,d in pairs(TargetEspObjs[mob]) do d.Visible=false end end end if alive and (Cfg.MobEsp or Cfg.MobHealth) then if not MobEspObjs[mob] then local n=Drawing.new("Text") n.Size=14 n.Center=true n.Outline=true n.Color=Color3.fromRGB(255,95,75) local h=Drawing.new("Text") h.Size=12 h.Center=true h.Outline=true h.Color=Color3.fromRGB(255,195,45) MobEspObjs[mob]={N=n,H=h} end local p2d,vis=Cam:WorldToViewportPoint(mr.Position+Vector3.new(0,4,0)) MobEspObjs[mob].N.Visible=Cfg.MobEsp and vis or false MobEspObjs[mob].H.Visible=Cfg.MobHealth and vis or false if vis then MobEspObjs[mob].N.Position=Vector2.new(p2d.X,p2d.Y) MobEspObjs[mob].N.Text=mob.Name MobEspObjs[mob].H.Position=Vector2.new(p2d.X,p2d.Y+16) MobEspObjs[mob].H.Text=FmtShort(hum.Health).."/"..FmtShort(hum.MaxHealth) end elseif MobEspObjs[mob] then if not alive then MobEspObjs[mob].N:Remove() MobEspObjs[mob].H:Remove() MobEspObjs[mob]=nil else MobEspObjs[mob].N.Visible=false MobEspObjs[mob].H.Visible=false end end end
+    if Cfg.ChestEsp then for _,o in pairs(workspace:GetDescendants()) do if o.Parent and o.Parent.Name=="GoldChest" and o:IsA("BasePart") then if not ChestEspObjs[o] then local t=Drawing.new("Text") t.Size=13 t.Center=true t.Outline=true t.Color=Color3.new(1,0.85,0) ChestEspObjs[o]=t end local p2d,vis=Cam:WorldToViewportPoint(o.Position+Vector3.new(0,2,0)) ChestEspObjs[o].Visible=vis if vis then ChestEspObjs[o].Position=Vector2.new(p2d.X,p2d.Y) ChestEspObjs[o].Text="🏆 GoldChest" end end end else for _,d in pairs(ChestEspObjs) do d.Visible=false end end
+end)
+task.delay(1.5,function() WindUI:Notify({Title="PW Hub ✓",Content="Welcome, "..LP.DisplayName.."!",Duration=5}) ConLog("Hub loaded — "..LP.DisplayName,"sys") end)
